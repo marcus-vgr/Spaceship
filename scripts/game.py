@@ -40,33 +40,36 @@ class Spaceship():
             self.velocity.x -= self.boost * sin(self.angle_torque) * dt
             self.velocity.y -= self.boost * cos(self.angle_torque) * dt
 
-        # NEEDS TO WORK MORE ON THE PHYSICS. IT IS STILL NOT IN A GOOD SHAPE
-        self.check_velocities()
-
-        self.pos += self.velocity * dt
-        
-        self.check_coordinates()
+        self.pos += self.velocity * dt        
+        self.make_boundary_corrections()
 
         self.screen.blit(self.image, self.pos)
 
-    def check_velocities(self):
-        if self.velocity.y > 0 and self.pos.y >= self.y_boundaries[1]:
-            self.velocity.y = 0
-        if abs(self.velocity.x) > 0 and self.pos.y >= self.y_boundaries[1]:
-            self.velocity.x = 0
     
-    
-    def check_coordinates(self):
+    def make_boundary_corrections(self):
+        
+        ### Working on boundaries at the x-axis
         if self.pos.x <= self.x_boundaries[0]:
             self.pos.x = self.x_boundaries[0]
+            if self.velocity.x < 0:
+                self.velocity.x = 0
         if self.pos.x >= self.x_boundaries[1]:
             self.pos.x = self.x_boundaries[1]
+            if self.velocity.x > 0:
+                self.velocity.x = 0
+        
+        ### Working on boundaries at the y-axis
         if self.pos.y <= self.y_boundaries[0]:
             self.pos.y = self.y_boundaries[0]
             self.velocity.y = 0
         if self.pos.y >= self.y_boundaries[1]:
             self.pos.y = self.y_boundaries[1]
+            if self.velocity.y > 0:
+                self.velocity.y = 0
         
+        ### Not moving the spaceship horizontally if on-ground
+        if abs(self.velocity.x) > 0 and self.pos.y >= self.y_boundaries[1]:
+            self.velocity.x = 0
             
 
 
