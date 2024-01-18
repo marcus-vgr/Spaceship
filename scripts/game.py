@@ -1,4 +1,5 @@
 import pygame
+from numpy import cos, sin, pi
 
 SCREEN_SIZE = (1280, 720)
 SPACECHIP_SIZE = (80,100)
@@ -14,32 +15,56 @@ class Spaceship():
         self.screen = screen
         self.image = pygame.image.load("FiguresGame/spaceship.png")
         self.image = pygame.transform.scale(self.image, SPACECHIP_SIZE)
-        self.pos = pygame.Vector2(screen.get_width()/2 - SPACECHIP_SIZE[0]*0.5, screen.get_height()/2)
-
+    
         self.x_boundaries = [-SPACECHIP_SIZE[1]*0.2, self.screen.get_width()-SPACECHIP_SIZE[1]*0.6]
         self.y_boundaries = [0, self.screen.get_height() - FLOOR_SIZE[1] - SPACECHIP_SIZE[1]*0.6]
-
-    def move(self, up=False, down=False, right=False, left=False, dt=0):
+        self.pos = pygame.Vector2(screen.get_width()/2 - SPACECHIP_SIZE[0]*0.5, self.y_boundaries[1])
+        self.velocity = pygame.Vector2(0, 0)
+        
+        self.gravity = 200
+        self.boost = 800
+        self.angle_torque = pi/3 #30degrees 
+    
+    def move(self, up=False, right=False, left=False, dt=0):
+        
         if up:
-            self.pos.y -= 300 * dt # "Up" is going down in coordinates.
-        if down:
-            self.pos.y += 300 * dt        
+            self.velocity.y -= self.boost * dt # Gives a boost in velocity (Up is reducing coordinates in pygame).
+        else:
+            self.velocity.y += self.gravity * dt
+        
         if right:
-            self.pos.x += 300 * dt
+            self.velocity.x += self.boost * sin(self.angle_torque) * dt
+            self.velocity.y -= self.boost * cos(self.angle_torque) * dt
+        
         if left:
-            self.pos.x -= 300 * dt
+            self.velocity.x -= self.boost * sin(self.angle_torque) * dt
+            self.velocity.y -= self.boost * cos(self.angle_torque) * dt
+
+        # NEEDS TO WORK MORE ON THE PHYSICS. IT IS STILL NOT IN A GOOD SHAPE
+        self.check_velocities()
+
+        self.pos += self.velocity * dt
+        
         self.check_coordinates()
 
         self.screen.blit(self.image, self.pos)
 
+    def check_velocities(self):
+        if self.velocity.y > 0 and self.pos.y >= self.y_boundaries[1]:
+            self.velocity.y = 0
+        if abs(self.velocity.x) > 0 and self.pos.y >= self.y_boundaries[1]:
+            self.velocity.x = 0
+    
+    
     def check_coordinates(self):
-        if self.pos.x < self.x_boundaries[0]:
+        if self.pos.x <= self.x_boundaries[0]:
             self.pos.x = self.x_boundaries[0]
-        if self.pos.x > self.x_boundaries[1]:
+        if self.pos.x >= self.x_boundaries[1]:
             self.pos.x = self.x_boundaries[1]
-        if self.pos.y < self.y_boundaries[0]:
+        if self.pos.y <= self.y_boundaries[0]:
             self.pos.y = self.y_boundaries[0]
-        if self.pos.y > self.y_boundaries[1]:
+            self.velocity.y = 0
+        if self.pos.y >= self.y_boundaries[1]:
             self.pos.y = self.y_boundaries[1]
         
             
@@ -66,7 +91,6 @@ class SpaceshipGame():
             self.set_backgroud()
             keys = pygame.key.get_pressed()
             player.move(up=keys[pygame.K_w],
-                        down=keys[pygame.K_s],
                         right=keys[pygame.K_d],
                         left=keys[pygame.K_a],
                         dt=dt)
