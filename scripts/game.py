@@ -15,37 +15,39 @@ class Spaceship():
         self.screen = screen
         self.image = pygame.image.load("FiguresGame/spaceship.png")
         self.image = pygame.transform.scale(self.image, SPACECHIP_SIZE)
-    
+
         self.x_boundaries = [-SPACECHIP_SIZE[1]*0.2, self.screen.get_width()-SPACECHIP_SIZE[1]*0.6]
         self.y_boundaries = [0, self.screen.get_height() - FLOOR_SIZE[1] - SPACECHIP_SIZE[1]*0.6]
         self.pos = pygame.Vector2(screen.get_width()/2 - SPACECHIP_SIZE[0]*0.5, self.y_boundaries[1])
         self.velocity = pygame.Vector2(0, 0)
+        self.rotation_angle = 0  # Keep track of the angle of the spaceship
         
+        # Parameters of the game for each movement
         self.gravity = 200
         self.boost = 800
-        self.angle_torque = pi/3 #30degrees 
+        self.angle_torque = 5 
     
     def move(self, up=False, right=False, left=False, dt=0):
         
-        if up:
-            self.velocity.y -= self.boost * dt # Gives a boost in velocity (Up is reducing coordinates in pygame).
-        else:
-            self.velocity.y += self.gravity * dt
+        if right:  # Right-left just change the angle of the spaceship
+            self.rotation_angle -= self.angle_torque
+        if left: 
+            self.rotation_angle += self.angle_torque
         
-        if right:
-            self.velocity.x += self.boost * sin(self.angle_torque) * dt
-            self.velocity.y -= self.boost * cos(self.angle_torque) * dt
+        if up:  # If pressing up we give a boost -- later add some fuel comsuption here...
+            self.velocity.x += self.boost * cos(self.rotation_angle*pi/180 + pi/2) * dt
+            self.velocity.y += (-self.boost * sin(self.rotation_angle*pi/180 + pi/2) * dt)
+        else:   # If not accelarating, the spaceship falls because of gravity
+            self.velocity.y += self.gravity * dt      
         
-        if left:
-            self.velocity.x -= self.boost * sin(self.angle_torque) * dt
-            self.velocity.y -= self.boost * cos(self.angle_torque) * dt
-
         self.pos += self.velocity * dt        
         self.make_boundary_corrections()
 
-        self.screen.blit(self.image, self.pos)
-
+        self.rotated_image = pygame.transform.rotate(self.image, self.rotation_angle) #We can not alter the original image
+        self.screen.blit(self.rotated_image, self.pos)
+        
     
+    #### TODO: destroy spaceship if colliding in the floor. Should be able to touch floor only with a minimum velocity, angle, and inside the platform
     def make_boundary_corrections(self):
         
         ### Working on boundaries at the x-axis
