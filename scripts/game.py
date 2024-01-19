@@ -1,5 +1,6 @@
 import pygame
 from numpy import cos, sin, pi
+import time
 
 SCREEN_SIZE = (1280, 720)
 SPACECHIP_SIZE = (60,75)
@@ -21,16 +22,31 @@ class Spaceship():
 
         self.x_boundaries = [-SPACECHIP_SIZE[1]*0.2, self.screen.get_width()-SPACECHIP_SIZE[1]*0.6]
         self.y_boundaries = [0, self.screen.get_height() - FLOOR_SIZE[1] - SPACECHIP_SIZE[1]*0.6]
-        self.pos = pygame.Vector2(screen.get_width()/2 - SPACECHIP_SIZE[0]*0.5, self.y_boundaries[1])
+        self.pos = pygame.Vector2(self.screen.get_width()/2 - SPACECHIP_SIZE[0]*0.5, self.y_boundaries[1])
         self.velocity = pygame.Vector2(0, 0)
         self.rotation_angle = 0  # Keep track of the angle of the spaceship
         self.alive = True
+        self.explosion_time = None
 
         # Parameters of the game for each movement
         self.gravity = 200
         self.boost = 800
         self.angle_torque = 5 
         self.max_velocity_landing = 100
+    
+    def reset(self):
+        self.pos = pygame.Vector2(self.screen.get_width()/2 - SPACECHIP_SIZE[0]*0.5, self.y_boundaries[1])
+        self.velocity = pygame.Vector2(0, 0)
+        self.rotation_angle = 0  # Keep track of the angle of the spaceship
+        self.alive = True
+        self.explosion_time = None
+
+    def draw(self):
+        if self.alive:
+            self.rotated_image = pygame.transform.rotate(self.image, self.rotation_angle) #We can not alter the original image
+            self.screen.blit(self.rotated_image, self.pos)
+        else:
+            self.screen.blit(self.image_explosion, self.pos)
     
     def move(self, up=False, right=False, left=False, dt=0):
         
@@ -48,12 +64,7 @@ class Spaceship():
         self.pos += self.velocity * dt        
         self.check_explosion()
         self.make_boundary_corrections()
-        
-        if self.alive:
-            self.rotated_image = pygame.transform.rotate(self.image, self.rotation_angle) #We can not alter the original image
-            self.screen.blit(self.rotated_image, self.pos)
-        else:
-            self.screen.blit(self.image_explosion, self.pos)    
+            
     
     def check_explosion(self):
         
@@ -61,7 +72,10 @@ class Spaceship():
             if self.pos.x <= BLIT_PLATFORM[0] or self.pos.x >= (BLIT_PLATFORM[0]+PLATFORM_SIZE[0])*0.95: # Check if we are outside the platform
                 self.alive = False
             elif self.velocity.magnitude() > self.max_velocity_landing or abs(self.rotation_angle) > self.angle_torque:
-                self.alive = False 
+                self.alive = False
+        
+        if not self.alive:
+            self.explosion_time = time.time() 
             
     def make_boundary_corrections(self):
         
@@ -109,11 +123,17 @@ class SpaceshipGame():
             self.check_for_quit()
             
             self.set_backgroud()
-            keys = pygame.key.get_pressed()
-            player.move(up=keys[pygame.K_w],
-                        right=keys[pygame.K_d],
-                        left=keys[pygame.K_a],
-                        dt=dt)
+
+            if player.alive:
+                keys = pygame.key.get_pressed()
+                player.move(up=keys[pygame.K_w],
+                            right=keys[pygame.K_d],
+                            left=keys[pygame.K_a],
+                            dt=dt)
+            else:
+                self.handle_explosion(player)
+            
+            player.draw()
 
             pygame.display.flip()
             
@@ -134,7 +154,12 @@ class SpaceshipGame():
         self.screen.blit(floor, BLIT_FLOOR)
         self.screen.blit(platform, BLIT_PLATFORM)
     
-    
+    def handle_explosion(self, player):
+        time_delay = 2 # time to reset game
+        elapsed_time = time.time() - player.explosion_time
+        if elapsed_time > time_delay:
+            player.reset()
+
     def check_for_quit(self):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
