@@ -1,5 +1,5 @@
 import pygame
-from numpy import cos, sin, pi
+from numpy import cos, sin, pi, random
 import time
 
 SCREEN_SIZE = (1280, 720)
@@ -7,9 +7,48 @@ SPACECHIP_SIZE = (60,75)
 EXPLOSION_SIZE = (100,100)
 FLOOR_SIZE = (SCREEN_SIZE[0]*1.2, 100)
 PLATFORM_SIZE = (SCREEN_SIZE[0]/3, 200)
+TARGET_SIZE = (60,60)
 BLIT_SKY = (0,0)
 BLIT_FLOOR = (0, SCREEN_SIZE[1]-FLOOR_SIZE[1])
 BLIT_PLATFORM = (SCREEN_SIZE[0]/3, SCREEN_SIZE[1] - PLATFORM_SIZE[1] + 50)
+MINIMUM_DISTANCE_TARGET = 30
+
+class Target():
+    def __init__(self, screen):
+        self.screen = screen
+        self.image = pygame.image.load("FiguresGame/target.png")
+        self.image = pygame.transform.scale(self.image, TARGET_SIZE)
+
+        self.x_max = self.screen.get_width()*0.9
+        self.y_max = self.screen.get_height() - FLOOR_SIZE[1] - SPACECHIP_SIZE[1]*0.6 # Need to adjust y_max later to dont get the target before landing...
+        self.pos = pygame.Vector2(0, 0)
+        self.pos.x = random.uniform(30, self.x_max)
+        self.pos.y = random.uniform(30, self.y_max) 
+
+        self.landing_target = False
+        self.counter = 0
+        self.number_targets = 1 # Number of targets to collect behore landing
+
+    def draw(self):
+        self.screen.blit(self.image, self.pos) 
+
+    def change_position(self):
+        if self.counter < self.number_targets-1:
+            self.pos.x = random.uniform(30, self.x_max)
+            self.pos.y = random.uniform(30, self.y_max) # Need to adjust y_max later to dont get the target
+            self.counter += 1
+        else:
+
+            self.pos.x = random.uniform( (BLIT_PLATFORM[0] + PLATFORM_SIZE[0]*0.2), (BLIT_PLATFORM[0] + PLATFORM_SIZE[0]*0.8) )
+            self.pos.y = self.y_max
+            self.landing_target = True
+
+    def reset(self):
+        self.pos.x = random.uniform(30, self.x_max)
+        self.pos.y = random.uniform(30, self.y_max) 
+        
+        self.landing_target = False
+        self.counter = 0
 
 
 class Spaceship():
@@ -27,6 +66,7 @@ class Spaceship():
         self.rotation_angle = 0  # Keep track of the angle of the spaceship
         self.alive = True
         self.explosion_time = None
+        self.landed = False
 
         # Parameters of the game for each movement
         self.gravity = 200
@@ -40,6 +80,7 @@ class Spaceship():
         self.rotation_angle = 0  # Keep track of the angle of the spaceship
         self.alive = True
         self.explosion_time = None
+        self.landed = False
 
     def draw(self):
         if self.alive:
@@ -77,6 +118,11 @@ class Spaceship():
         if not self.alive:
             self.explosion_time = time.time() 
             
+    def set_landing(self):
+        self.landed = True
+        self.landing_time = time.time()
+
+
     def make_boundary_corrections(self):
         
         ### Working on boundaries at the x-axis
@@ -114,9 +160,11 @@ class SpaceshipGame():
         
         self.screen = pygame.display.set_mode(SCREEN_SIZE)
         self.clock = pygame.time.Clock()
+        self.font = pygame.font.Font(None, 60)
         self.running = True
         
         player = Spaceship(self.screen)
+        target = Target(self.screen)
 
         dt = 0
         while self.running:
@@ -131,9 +179,14 @@ class SpaceshipGame():
                             left=keys[pygame.K_a],
                             dt=dt)
             else:
-                self.handle_explosion(player)
+                self.handle_explosion(player, target)
             
-            player.draw()
+            if not player.landed:
+                    player.draw()
+                    target.draw()
+                    self.check_got_target(player, target)
+            elif player.landed and player.alive:
+                self.handle_newgame(player, target)
 
             pygame.display.flip()
             
@@ -154,12 +207,36 @@ class SpaceshipGame():
         self.screen.blit(floor, BLIT_FLOOR)
         self.screen.blit(platform, BLIT_PLATFORM)
     
-    def handle_explosion(self, player):
+    def check_got_target(self, player, target): 
+        
+        if not target.landing_target:
+            dist = player.pos.distance_to(target.pos)
+            if dist <= MINIMUM_DISTANCE_TARGET:
+                target.change_position()
+        else:
+            if abs(player.pos.y - target.pos.y) < 1e-6 and abs(player.pos.x - target.pos.x) < MINIMUM_DISTANCE_TARGET:
+                player.set_landing()
+
+    def handle_explosion(self, player, target):
         time_delay = 2 # time to reset game
         elapsed_time = time.time() - player.explosion_time
         if elapsed_time > time_delay:
             player.reset()
+            target.reset()
+        else:
+            lose_img = self.font.render("You Lost!", True, (0,0,0))
+            self.screen.blit(lose_img, (self.screen.get_width()/2.4, self.screen.get_height()/2))
 
+    def handle_newgame(self, player, target):
+        time_delay = 2 # time to reset game
+        elapsed_time = time.time() - player.landing_time
+        if elapsed_time > time_delay:
+            player.reset()
+            target.reset() 
+        else:
+            congratulation_img = self.font.render("Congratulations!", True, (0,0,0))
+            self.screen.blit(congratulation_img, (self.screen.get_width()/2.8, self.screen.get_height()/2))
+            
     def check_for_quit(self):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
