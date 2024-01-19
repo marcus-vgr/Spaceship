@@ -2,7 +2,8 @@ import pygame
 from numpy import cos, sin, pi
 
 SCREEN_SIZE = (1280, 720)
-SPACECHIP_SIZE = (80,100)
+SPACECHIP_SIZE = (60,75)
+EXPLOSION_SIZE = (100,100)
 FLOOR_SIZE = (SCREEN_SIZE[0]*1.2, 100)
 PLATFORM_SIZE = (SCREEN_SIZE[0]/3, 200)
 BLIT_SKY = (0,0)
@@ -15,17 +16,21 @@ class Spaceship():
         self.screen = screen
         self.image = pygame.image.load("FiguresGame/spaceship.png")
         self.image = pygame.transform.scale(self.image, SPACECHIP_SIZE)
+        self.image_explosion = pygame.image.load("FiguresGame/explosion.png")
+        self.image_explosion = pygame.transform.scale(self.image_explosion, EXPLOSION_SIZE)
 
         self.x_boundaries = [-SPACECHIP_SIZE[1]*0.2, self.screen.get_width()-SPACECHIP_SIZE[1]*0.6]
         self.y_boundaries = [0, self.screen.get_height() - FLOOR_SIZE[1] - SPACECHIP_SIZE[1]*0.6]
         self.pos = pygame.Vector2(screen.get_width()/2 - SPACECHIP_SIZE[0]*0.5, self.y_boundaries[1])
         self.velocity = pygame.Vector2(0, 0)
         self.rotation_angle = 0  # Keep track of the angle of the spaceship
-        
+        self.alive = True
+
         # Parameters of the game for each movement
         self.gravity = 200
         self.boost = 800
         self.angle_torque = 5 
+        self.max_velocity_landing = 100
     
     def move(self, up=False, right=False, left=False, dt=0):
         
@@ -41,13 +46,23 @@ class Spaceship():
             self.velocity.y += self.gravity * dt      
         
         self.pos += self.velocity * dt        
+        self.check_explosion()
         self.make_boundary_corrections()
-
-        self.rotated_image = pygame.transform.rotate(self.image, self.rotation_angle) #We can not alter the original image
-        self.screen.blit(self.rotated_image, self.pos)
         
+        if self.alive:
+            self.rotated_image = pygame.transform.rotate(self.image, self.rotation_angle) #We can not alter the original image
+            self.screen.blit(self.rotated_image, self.pos)
+        else:
+            self.screen.blit(self.image_explosion, self.pos)    
     
-    #### TODO: destroy spaceship if colliding in the floor. Should be able to touch floor only with a minimum velocity, angle, and inside the platform
+    def check_explosion(self):
+        
+        if self.pos.y >= self.y_boundaries[1]: # Check if we are in the floor
+            if self.pos.x <= BLIT_PLATFORM[0] or self.pos.x >= (BLIT_PLATFORM[0]+PLATFORM_SIZE[0])*0.95: # Check if we are outside the platform
+                self.alive = False
+            elif self.velocity.magnitude() > self.max_velocity_landing or abs(self.rotation_angle) > self.angle_torque:
+                self.alive = False 
+            
     def make_boundary_corrections(self):
         
         ### Working on boundaries at the x-axis
@@ -60,7 +75,7 @@ class Spaceship():
             if self.velocity.x > 0:
                 self.velocity.x = 0
         
-        ### Working on boundaries at the y-axis
+        ### Working on boundaries at the y-axis.
         if self.pos.y <= self.y_boundaries[0]:
             self.pos.y = self.y_boundaries[0]
             self.velocity.y = 0
