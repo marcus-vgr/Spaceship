@@ -27,7 +27,7 @@ class Target():
 
         self.landing_target = False
         self.counter = 0
-        self.number_targets = 1 # Number of targets to collect behore landing
+        self.number_targets = 2 # Number of targets to collect behore landing
 
     def draw(self):
         self.screen.blit(self.image, self.pos) 
@@ -58,7 +58,7 @@ class Spaceship():
         self.image = pygame.transform.scale(self.image, SPACECHIP_SIZE)
         self.image_explosion = pygame.image.load("FiguresGame/explosion.png")
         self.image_explosion = pygame.transform.scale(self.image_explosion, EXPLOSION_SIZE)
-
+        
         self.x_boundaries = [-SPACECHIP_SIZE[1]*0.2, self.screen.get_width()-SPACECHIP_SIZE[1]*0.6]
         self.y_boundaries = [0, self.screen.get_height() - FLOOR_SIZE[1] - SPACECHIP_SIZE[1]*0.6]
         self.pos = pygame.Vector2(self.screen.get_width()/2 - SPACECHIP_SIZE[0]*0.5, self.y_boundaries[1])
@@ -72,7 +72,8 @@ class Spaceship():
         self.gravity = 200
         self.boost = 800
         self.angle_torque = 5 
-        self.max_velocity_landing = 100
+        self.max_velocity_landing = 150
+        self.max_angle_landing = 2*self.angle_torque
     
     def reset(self):
         self.pos = pygame.Vector2(self.screen.get_width()/2 - SPACECHIP_SIZE[0]*0.5, self.y_boundaries[1])
@@ -88,7 +89,7 @@ class Spaceship():
             self.screen.blit(self.rotated_image, self.pos)
         else:
             self.screen.blit(self.image_explosion, self.pos)
-    
+        
     def move(self, up=False, right=False, left=False, dt=0):
         
         if right:  # Right-left just change the angle of the spaceship
@@ -112,7 +113,7 @@ class Spaceship():
         if self.pos.y >= self.y_boundaries[1]: # Check if we are in the floor
             if self.pos.x <= BLIT_PLATFORM[0] or self.pos.x >= (BLIT_PLATFORM[0]+PLATFORM_SIZE[0])*0.95: # Check if we are outside the platform
                 self.alive = False
-            elif self.velocity.magnitude() > self.max_velocity_landing or abs(self.rotation_angle) > self.angle_torque:
+            elif self.velocity.magnitude() > self.max_velocity_landing or abs(self.rotation_angle) > self.max_angle_landing:
                 self.alive = False
         
         if not self.alive:
