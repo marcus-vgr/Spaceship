@@ -12,6 +12,7 @@ BLIT_SKY = (0,0)
 BLIT_FLOOR = (0, SCREEN_SIZE[1]-FLOOR_SIZE[1])
 BLIT_PLATFORM = (SCREEN_SIZE[0]/3, SCREEN_SIZE[1] - PLATFORM_SIZE[1] + 50)
 MINIMUM_DISTANCE_TARGET = 30
+TIME_MAX = 22 # seconds
 
 class Target():
     def __init__(self, screen):
@@ -163,6 +164,8 @@ class SpaceshipGame():
         self.clock = pygame.time.Clock()
         self.font = pygame.font.Font(None, 60)
         self.running = True
+        self.start_time = pygame.time.get_ticks()
+        self.time_finished = False
         
         player = Spaceship(self.screen)
         target = Target(self.screen)
@@ -189,7 +192,12 @@ class SpaceshipGame():
             elif player.landed and player.alive:
                 self.handle_newgame(player, target)
 
+            self.set_clock()
+            if self.time_finished:
+                self.handle_timeoff(player, target)
+
             pygame.display.flip()
+            #self.saveframes("path/to/save")
             
             # limits FPS to 60. dt is delta time in seconds since last frame, used for framerate-independent physics.
             dt = self.clock.tick(60) / 1000
@@ -224,6 +232,8 @@ class SpaceshipGame():
         if elapsed_time > time_delay:
             player.reset()
             target.reset()
+            self.time_finished = False
+            self.start_time = pygame.time.get_ticks()
         else:
             lose_img = self.font.render("You Lost!", True, (0,0,0))
             self.screen.blit(lose_img, (self.screen.get_width()/2.4, self.screen.get_height()/2))
@@ -233,14 +243,46 @@ class SpaceshipGame():
         elapsed_time = time.time() - player.landing_time
         if elapsed_time > time_delay:
             player.reset()
-            target.reset() 
+            target.reset()
+            self.time_finished = False
+            self.start_time = pygame.time.get_ticks() 
         else:
             congratulation_img = self.font.render("Congratulations!", True, (0,0,0))
             self.screen.blit(congratulation_img, (self.screen.get_width()/2.8, self.screen.get_height()/2))
             
+    def set_clock(self):
+        seconds_left = TIME_MAX - (pygame.time.get_ticks() - self.start_time) / 1000
+        seconds_left = int(seconds_left)
+        timer_img = self.font.render(str(seconds_left), True, (0,0,0))
+        self.screen.blit(timer_img, (SCREEN_SIZE[0]-50, 10))
+        if seconds_left < 1:
+            self.time_finished = True
+            self.time_clock_off = time.time()
+
+    def handle_timeoff(self, player, target):
+        time_delay = 2 # time to reset game
+        elapsed_time = time.time() - self.time_clock_off
+        if elapsed_time > time_delay:
+            player.reset()
+            target.reset()
+            self.time_finished = False
+            self.start_time = pygame.time.get_ticks()
+        else:
+            lose_img = self.font.render("You Lost!", True, (0,0,0))
+            self.screen.blit(lose_img, (self.screen.get_width()/2.4, self.screen.get_height()/2))
+
+
     def check_for_quit(self):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.running = False
         
+    def saveframes(self,path):
+        # Use this function when you want to save images to later create a video.
+        # The video is created from the images using ffpmeg
+        # ffmpeg -framerate 30 -pattern_type glob -i 'path/*.jpeg' -c:v libx264 -pix_fmt yuv420p out.mp4
+        timestamp = time.time()
+        filename = f"{path}/f{timestamp}.jpeg"
+        pygame.image.save(self.screen, filename)
+
     
