@@ -12,19 +12,21 @@ BLIT_SKY = (0,0)
 BLIT_FLOOR = (0, SCREEN_SIZE[1]-FLOOR_SIZE[1])
 BLIT_PLATFORM = (SCREEN_SIZE[0]/3, SCREEN_SIZE[1] - PLATFORM_SIZE[1] + 50)
 MINIMUM_DISTANCE_TARGET = 30
-TIME_MAX = 22 # seconds
 
 class Target():
-    def __init__(self, screen):
+    def __init__(self, screen, fixed_x=-99, fixed_y=-99):
         self.screen = screen
         self.image = pygame.image.load("FiguresGame/target.png")
         self.image = pygame.transform.scale(self.image, TARGET_SIZE)
 
         self.x_max = self.screen.get_width()*0.9
         self.y_max = self.screen.get_height() - FLOOR_SIZE[1] - SPACECHIP_SIZE[1]*0.6 # Need to adjust y_max later to dont get the target before landing...
+        self.fixed_x = fixed_x
+        self.fixed_y = fixed_y
         self.pos = pygame.Vector2(0, 0)
-        self.pos.x = random.uniform(30, self.x_max)
-        self.pos.y = random.uniform(30, self.y_max) 
+        self.pos.x = random.uniform(30, self.x_max) if self.fixed_x < 0 else self.fixed_x
+        self.pos.y = random.uniform(30, self.y_max) if self.fixed_y < 0 else self.fixed_y
+        
 
         self.landing_target = False
         self.counter = 0
@@ -39,15 +41,14 @@ class Target():
             self.pos.y = random.uniform(30, self.y_max) # Need to adjust y_max later to dont get the target
             self.counter += 1
         else:
-
             self.pos.x = random.uniform( (BLIT_PLATFORM[0] + PLATFORM_SIZE[0]*0.2), (BLIT_PLATFORM[0] + PLATFORM_SIZE[0]*0.8) )
             self.pos.y = self.y_max
             self.landing_target = True
 
     def reset(self):
-        self.pos.x = random.uniform(30, self.x_max)
-        self.pos.y = random.uniform(30, self.y_max) 
-        
+        self.pos.x = random.uniform(30, self.x_max) if self.fixed_x < 0 else self.fixed_x
+        self.pos.y = random.uniform(30, self.y_max) if self.fixed_y < 0 else self.fixed_y
+
         self.landing_target = False
         self.counter = 0
 
@@ -188,7 +189,8 @@ class SpaceshipGame():
             if not player.landed:
                     player.draw()
                     target.draw()
-                    self.check_got_target(player, target)
+                    if self.check_got_target(player, target):
+                        self.change_target(target)
             elif player.landed and player.alive:
                 self.handle_newgame(player, target)
 
@@ -221,10 +223,15 @@ class SpaceshipGame():
         if not target.landing_target:
             dist = player.pos.distance_to(target.pos)
             if dist <= MINIMUM_DISTANCE_TARGET:
-                target.change_position()
+                #target.change_position()
+                return True
         else:
             if abs(player.pos.y - target.pos.y) < 1e-6 and abs(player.pos.x - target.pos.x) < MINIMUM_DISTANCE_TARGET:
                 player.set_landing()
+                return True
+
+    def change_target(self, target):
+        target.change_position()
 
     def handle_explosion(self, player, target):
         time_delay = 2 # time to reset game
@@ -250,8 +257,8 @@ class SpaceshipGame():
             congratulation_img = self.font.render("Congratulations!", True, (0,0,0))
             self.screen.blit(congratulation_img, (self.screen.get_width()/2.8, self.screen.get_height()/2))
             
-    def set_clock(self):
-        seconds_left = TIME_MAX - (pygame.time.get_ticks() - self.start_time) / 1000
+    def set_clock(self, time_max=22): # 22seconds
+        seconds_left = time_max - (pygame.time.get_ticks() - self.start_time) / 1000
         seconds_left = int(seconds_left)
         timer_img = self.font.render(str(seconds_left), True, (0,0,0))
         self.screen.blit(timer_img, (SCREEN_SIZE[0]-50, 10))
