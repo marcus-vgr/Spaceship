@@ -77,8 +77,14 @@ class Spaceship():
         self.max_velocity_landing = 150
         self.max_angle_landing = 2*self.angle_torque
     
-    def reset(self):
+    def reset(self, randomx=False, randomy=False):
         self.pos = pygame.Vector2(self.screen.get_width()/2 - SPACECHIP_SIZE[0]*0.5, self.y_boundaries[1])
+        if randomx:
+            self.pos.x = random.uniform(BLIT_PLATFORM[0], (BLIT_PLATFORM[0]+PLATFORM_SIZE[0])*0.95)
+        if randomy:
+            ymax = self.screen.get_height() - FLOOR_SIZE[1] - SPACECHIP_SIZE[1]*0.6
+            self.pos.y = random.uniform(30, ymax)
+        
         self.velocity = pygame.Vector2(0, 0)
         self.rotation_angle = 0  # Keep track of the angle of the spaceship
         self.alive = True
@@ -266,11 +272,10 @@ class SpaceshipGame():
             self.time_finished = True
             self.time_clock_off = time.time()
 
-    def handle_timeoff(self, player, target):
-        time_delay = 2 # time to reset game
+    def handle_timeoff(self, player, target, time_delay=2, randomx=False, randomy=False):
         elapsed_time = time.time() - self.time_clock_off
         if elapsed_time > time_delay:
-            player.reset()
+            player.reset(randomx, randomy)
             target.reset()
             self.time_finished = False
             self.start_time = pygame.time.get_ticks()
