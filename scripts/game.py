@@ -262,7 +262,7 @@ class SpaceshipGame():
         seconds_left = int(seconds_left)
         timer_img = self.font.render(str(seconds_left), True, (0,0,0))
         self.screen.blit(timer_img, (SCREEN_SIZE[0]-50, 10))
-        if seconds_left < 1:
+        if seconds_left < 1 and self.time_finished is False:
             self.time_finished = True
             self.time_clock_off = time.time()
 
