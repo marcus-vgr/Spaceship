@@ -1,9 +1,12 @@
+import json
+import os
 from .game import *
 from tensorflow.keras import layers, Model
 from tensorflow.keras.models import clone_model
 from tensorflow.random import normal
 from tensorflow import convert_to_tensor
 
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 class NNModel():
     def __init__(self, basemodel=None):
@@ -35,6 +38,7 @@ class TrainablePlayer(Spaceship, NNModel):
             ymax = self.screen.get_height() - FLOOR_SIZE[1] - SPACECHIP_SIZE[1]*0.6
             self.pos.y = random.uniform(30, ymax)  
 
+        self.got_target = False
         self.score = 0  
     
     def get_input_variables(self, target):
@@ -59,7 +63,14 @@ class ModelTraining(SpaceshipGame):
     def __init__(self):
         self.threshold_command = 0.4
         self.target_score = 40
-        self.die_score = -5
+        self.die_score = -10
+
+        self.dict_performance = {}
+
+        self.max_number_generations = 20
+        self.number_generations = 0
+        self.number_players = 300
+        self.number_players_evolute = 10
 
 
     def get_target_training(self):
@@ -70,40 +81,44 @@ class ModelTraining(SpaceshipGame):
         self.font = pygame.font.Font(None, 60)
         self.start_time = pygame.time.get_ticks()
         self.time_finished = False
-        
-        max_number_generations = 4
-        number_generations = 0
-        number_players = 300
-        number_players_evolute = 10
-        self.players = [TrainablePlayer(self.screen, randomx=True) for _ in range(number_players)]
-        self.get_target_training_run()        
-        
-        while number_generations < max_number_generations: 
-            top_players = list( sorted(self.players, key=lambda x: x.score, reverse=True)[:number_players_evolute] ) 
-            for i,player in enumerate(top_players):
-                print(f"Player {i}: Score = {player.score}")
-            print('===============================================')
-            
-            self.players = []   # Recreate players based on the top players
-            for _ in range(number_players):
-                evolute_idx = random.randint(0, number_players_evolute) # Select a random player to evolute from the top ones
-                model = top_players[evolute_idx].model
-                self.players.append( TrainablePlayer(self.screen, randomx=True, basemodel=model)  )
-            
+
+        self.players = [TrainablePlayer(self.screen, randomx=True) for _ in range(self.number_players)]
+        while self.number_generations < self.max_number_generations:             
             self.get_target_training_run()
-            number_generations += 1
+            self.prepare_new_players()
+            self.number_generations += 1
+
+            with open(f"{SCRIPT_DIR}/TrainingPerformance/get_target.json", "w") as f:
+                json.dump(self.dict_performance, f, indent=1)
 
         pygame.quit()
 
+    def prepare_new_players(self):
+        top_players = list( sorted(self.players, key=lambda x: x.score, reverse=True)[:self.number_players_evolute] )  #Get top players
+        
+        self.dict_performance[self.number_generations] = []
+        for i,player in enumerate(top_players):     # Store stats
+            self.dict_performance[self.number_generations].append(player.score)
+            print(f"Player {i}: Score = {player.score}")
+        avg_score = mean(self.dict_performance[self.number_generations])
+        print(f'=============== Average = {avg_score}  ===================')
+        
+        self.players = []   # Recreate players based on the top players
+        for _ in range(self.number_players):
+            evolute_idx = random.randint(0, self.number_players_evolute) # Select a random player to evolute from the top ones
+            model = top_players[evolute_idx].model
+            self.players.append( TrainablePlayer(self.screen, randomx=True, basemodel=model)  )
+
     def get_target_training_run(self):
 
+        self.clock = pygame.time.Clock()
         target = Target(self.screen)
-        running = True
+        self.running = True
         dt = 0
         counter = 0
-        max_counter = 2
-        while running:
-            self.check_for_quit()
+        max_counter = 5
+        while self.running:
+            self.check_for_quit(closegame=True)
             
             self.set_backgroud()
 
@@ -116,8 +131,8 @@ class ModelTraining(SpaceshipGame):
                             dt=dt)
                 player.draw()
                 target.draw()
-                if self.check_got_target(player, target):  # The same player can "get" the target multiple times. Shouldn't reward every single time. Or should?
-                    player.score += self.target_score
+                if self.check_got_target(player, target): 
+                    player.got_target = True # To get target only once
                 if not player.alive: # Died this movement
                     player.score += self.die_score
 
@@ -125,7 +140,10 @@ class ModelTraining(SpaceshipGame):
             if self.time_finished:   # Have to work on the timer for the training
                 counter += 1
                 for player in self.players:
+                    if player.got_target:
+                        player.score += self.target_score
                     self.handle_timeoff(player, target, time_delay=0, randomx=True, randomy=False)
+                    player.got_target = False
             
             pygame.display.flip()
             #self.saveframes("path/to/save")
@@ -134,4 +152,4 @@ class ModelTraining(SpaceshipGame):
             dt = self.clock.tick(60) / 1000
         
             if counter >= max_counter:
-                running = False
+                self.running = False

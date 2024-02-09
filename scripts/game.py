@@ -1,5 +1,5 @@
 import pygame
-from numpy import cos, sin, pi, random
+from numpy import cos, sin, pi, random, mean
 import time
 
 SCREEN_SIZE = (1280, 720)
@@ -284,10 +284,12 @@ class SpaceshipGame():
             self.screen.blit(lose_img, (self.screen.get_width()/2.4, self.screen.get_height()/2))
 
 
-    def check_for_quit(self):
+    def check_for_quit(self, closegame=False):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.running = False
+                if closegame: 
+                    pygame.quit()
         
     def saveframes(self,path):
         # Use this function when you want to save images to later create a video.
